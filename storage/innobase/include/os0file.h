@@ -96,6 +96,8 @@ struct pfs_os_file_t
 	/** PERFORMANCE_SCHEMA descriptor */
 	struct PSI_file *m_psi;
 #endif
+	/*Is this an ibd file*/
+	bool is_ibd_file;
 	/** Implicit type conversion.
 	@return the wrapped file handle */
 	operator os_file_t() const { return m_file; }

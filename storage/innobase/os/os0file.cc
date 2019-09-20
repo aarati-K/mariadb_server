@@ -2608,6 +2608,19 @@ os_file_create_simple_func(
 	}
 #endif /* USE_FILE_LOCK */
 
+	/* Check if this is an ibd file. All filenames ending in *.ibd
+	 * (except ./mysql/*.ibd) are considered ibd files.
+	*/
+	int l = strlen(name);
+	bool is_ibd_file;
+	if (strncmp(&name[l-4], ".ibd", 4) == 0 && strncmp(name, "./mysql/", 8) != 0) {
+		file.is_ibd_file = true;
+		fprintf(stdout, "%s file is ibd\n", name);
+	} else {
+		fprintf(stdout, "%s file is not ibd\n", name);
+		file.is_ibd_file = false;
+	}
+
 	return(file);
 }
 
@@ -2868,7 +2881,7 @@ os_file_create_func(
 	}
 #endif /* O_SYNC */
 
-	os_file_t	file;
+	pfs_os_file_t	file;
 	bool		retry;
 
 	do {
@@ -2935,6 +2948,19 @@ os_file_create_func(
 	}
 #endif /* USE_FILE_LOCK */
 
+	/* Check if this is an ibd file. All filenames ending in *.ibd
+	 * (except ./mysql/*.ibd) are considered ibd files.
+	*/
+	int l = strlen(name);
+	bool is_ibd_file;
+	if (strncmp(&name[l-4], ".ibd", 4) == 0 && strncmp(name, "./mysql/", 8) != 0) {
+		file.is_ibd_file = true;
+		fprintf(stdout, "%s file is ibd\n", name);
+	} else {
+		fprintf(stdout, "%s file is not ibd\n", name);
+		file.is_ibd_file = false;
+	}
+
 	return(file);
 }
 
@@ -2959,7 +2985,7 @@ os_file_create_simple_no_error_handling_func(
 	bool		read_only,
 	bool*		success)
 {
-	os_file_t	file;
+	pfs_os_file_t	file;
 	int		create_flag;
 
 	if (create_mode != OS_FILE_OPEN && create_mode != OS_FILE_OPEN_RAW) {
@@ -3022,6 +3048,19 @@ os_file_create_simple_no_error_handling_func(
 
 	}
 #endif /* USE_FILE_LOCK */
+
+	/* Check if this is an ibd file. All filenames ending in *.ibd
+	 * (except ./mysql/*.ibd) are considered ibd files.
+	*/
+	int l = strlen(name);
+	bool is_ibd_file;
+	if (strncmp(&name[l-4], ".ibd", 4) == 0 && strncmp(name, "./mysql/", 8) != 0) {
+		file.is_ibd_file = true;
+		fprintf(stdout, "%s file is ibd\n", name);
+	} else {
+		fprintf(stdout, "%s file is not ibd\n", name);
+		file.is_ibd_file = false;
+	}
 
 	return(file);
 }
