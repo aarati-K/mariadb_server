@@ -1166,6 +1166,7 @@ mostly meant to be used with temporary files.
 @param[in,out]	file		File to read from
 @param[in,out]	str		Buffer where to read
 @param[in]	size		Size of buffer */
+/* This function can be a problem.. but its probably not important*/
 void
 os_file_read_string(
 	FILE*		file,
@@ -2449,6 +2450,7 @@ function!
 Flushes the write buffers of a given file to the disk.
 @param[in]	file		handle to a file
 @return true if success */
+/*No changes to support new layout*/
 bool
 os_file_flush_func(
 	os_file_t	file)
@@ -3162,6 +3164,7 @@ Closes a file handle. In case of error, error number can be retrieved with
 os_file_get_last_error.
 @param[in]	file		Handle to close
 @return true if success */
+/*No changes to support new layout*/
 bool
 os_file_close_func(
 	os_file_t	file)
@@ -3181,10 +3184,16 @@ os_file_close_func(
 @param[in]	file		handle to an open file
 @return file size, or (os_offset_t) -1 on failure */
 os_offset_t
-os_file_get_size(os_file_t file)
+os_file_get_size(pfs_os_file_t pfs_file)
 {
+	os_file_t file = pfs_file;
 	struct stat statbuf;
-	return fstat(file, &statbuf) ? os_offset_t(-1) : statbuf.st_size;
+	os_offset_t st_size;
+	st_size = fstat(file, &statbuf) ? os_offset_t(-1) : statbuf.st_size;
+	if (pfs_file.is_ibd_file && st_size > 0) {
+		return st_size - srv_page_size/2;
+	}
+	return st_size;
 }
 
 /** Gets a file size.
@@ -3200,10 +3209,22 @@ os_file_get_size(
 
 	int	ret = stat(filename, &s);
 
+	/* Check if ibd file */
+	bool is_ibd_file = false;
+	int l = strlen(filename);
+	if (strncmp(&filename[l-4], ".ibd", 4) == 0 && strncmp(filename, "./mysql/", 8) != 0) {
+		is_ibd_file = true;
+		fprintf(stdout, "os_file_get_size 2 called for ibd file %s\n", filename);
+	}
+
 	if (ret == 0) {
 		file_size.m_total_size = s.st_size;
 		/* st_blocks is in 512 byte sized blocks */
 		file_size.m_alloc_size = s.st_blocks * 512;
+		if (is_ibd_file) {
+			file_size.m_total_size -= srv_page_size/2;
+			file_size.m_alloc_size -= 32768;
+		}
 	} else {
 		file_size.m_total_size = ~0U;
 		file_size.m_alloc_size = (os_offset_t) errno;
@@ -4522,7 +4543,6 @@ os_file_get_size(
 	int		ret = _stat64(filename, &s);
 
 	if (ret == 0) {
-
 		file_size.m_total_size = s.st_size;
 
 		DWORD	low_size;
@@ -4914,19 +4934,29 @@ dberr_t
 os_file_write_func(
 	const IORequest&	type,
 	const char*		name,
-	os_file_t		file,
+	pfs_os_file_t		pfs_file,
 	const void*		buf,
 	os_offset_t		offset,
 	ulint			n)
 {
+	os_file_t file = pfs_file;
 	dberr_t		err;
+
+	if (pfs_file.is_ibd_file) {
+		fprintf(stdout, "os_file_write_func called for ibd file %s\n", name);
+	}
 
 	ut_ad(type.validate());
 	ut_ad(n > 0);
 
 	WAIT_ALLOW_WRITES();
 
-	ssize_t	n_bytes = os_file_pwrite(type, file, (byte*)buf, n, offset, &err);
+	ssize_t	n_bytes;
+	if (pfs_file.is_ibd_file) {
+		n_bytes = os_file_pwrite(type, file, (byte*)buf, n, offset+srv_page_size/2, &err);
+	} else {
+		n_bytes = os_file_pwrite(type, file, (byte*)buf, n, offset, &err);
+	}
 
 	if ((ulint) n_bytes != n && !os_has_said_disk_full) {
 
@@ -5000,13 +5030,14 @@ static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 os_file_read_page(
 	const IORequest&	type,
-	os_file_t		file,
+	pfs_os_file_t		pfs_file,
 	void*			buf,
 	os_offset_t		offset,
 	ulint			n,
 	ulint*			o,
 	bool			exit_on_err)
 {
+	os_file_t file = pfs_file;
 	dberr_t		err;
 
 	os_bytes_read_since_printout += n;
@@ -5014,7 +5045,12 @@ os_file_read_page(
 	ut_ad(type.validate());
 	ut_ad(n > 0);
 
-	ssize_t	n_bytes = os_file_pread(type, file, buf, n, offset, &err);
+	ssize_t	n_bytes;
+	if (pfs_file.is_ibd_file) {
+		n_bytes = os_file_pread(type, file, buf, n, offset+srv_page_size/2, &err);
+	} else {
+		n_bytes = os_file_pread(type, file, buf, n, offset, &err);
+	}
 
 	if (o) {
 		*o = n_bytes;
@@ -5249,10 +5285,11 @@ of file.
 bool
 os_file_set_size(
 	const char*	name,
-	os_file_t	file,
+	pfs_os_file_t	pfs_file,
 	os_offset_t	size,
 	bool	is_sparse)
 {
+	os_file_t file = pfs_file;
 #ifdef _WIN32
 	/* On Windows, changing file size works well and as expected for both
 	sparse and normal files.
@@ -5273,6 +5310,9 @@ os_file_set_size(
 fallback:
 #else
 	if (is_sparse) {
+		if (pfs_file.is_ibd_file) {
+			fprintf(stdout, "ibd file is sparse? %s\n", name);
+		}
 		bool success = !ftruncate(file, size);
 		if (!success) {
 			ib::error() << "ftruncate of file " << name << " to "
@@ -5282,10 +5322,14 @@ fallback:
 		return(success);
 	}
 
+	if (pfs_file.is_ibd_file) {
+		size = size+srv_page_size/2;
+	}
+
 # ifdef HAVE_POSIX_FALLOCATE
 	int err;
 	do {
-		os_offset_t current_size = os_file_get_size(file);
+		os_offset_t current_size = os_file_get_size(pfs_file);
 		err = current_size >= size
 			? 0 : posix_fallocate(file, current_size,
 					      size - current_size);
@@ -5325,7 +5369,7 @@ fallback:
 	/* Write buffer full of zeros */
 	memset(buf, 0, buf_size);
 
-	os_offset_t	current_size = os_file_get_size(file);
+	os_offset_t	current_size = os_file_get_size(pfs_file);
 
 	while (current_size < size
 	       && srv_shutdown_state == SRV_SHUTDOWN_NONE) {
@@ -5364,14 +5408,19 @@ fallback:
 bool
 os_file_truncate(
 	const char*	pathname,
-	os_file_t	file,
+	pfs_os_file_t	pfs_file,
 	os_offset_t	size,
 	bool		allow_shrink)
 {
+	os_file_t file = pfs_file;
+	if (pfs_file.is_ibd_file) {
+		fprintf(stdout, "os_file_truncate called for ibd file %s\n", pathname);
+		size += srv_page_size/2;
+	}
 	if (!allow_shrink) {
 		/* Do nothing if the size preserved is larger than or
 		equal to the current size of file */
-		os_offset_t	size_bytes = os_file_get_size(file);
+		os_offset_t	size_bytes = os_file_get_size(pfs_file);
 
 		if (size >= size_bytes) {
 			return(true);
@@ -5399,12 +5448,12 @@ Requests a synchronous positioned read operation.
 dberr_t
 os_file_read_func(
 	const IORequest&	type,
-	os_file_t		file,
+	pfs_os_file_t		pfs_file,
 	void*			buf,
 	os_offset_t		offset,
 	ulint			n)
 {
-	return(os_file_read_page(type, file, buf, offset, n, NULL, true));
+	return(os_file_read_page(type, pfs_file, buf, offset, n, NULL, true));
 }
 
 /** NOTE! Use the corresponding macro os_file_read_no_error_handling(),
@@ -5421,13 +5470,13 @@ Requests a synchronous positioned read operation.
 dberr_t
 os_file_read_no_error_handling_func(
 	const IORequest&	type,
-	os_file_t		file,
+	pfs_os_file_t		pfs_file,
 	void*			buf,
 	os_offset_t		offset,
 	ulint			n,
 	ulint*			o)
 {
-	return(os_file_read_page(type, file, buf, offset, n, o, false));
+	return(os_file_read_page(type, pfs_file, buf, offset, n, o, false));
 }
 
 /** Check the existence and type of the given file.
@@ -5453,12 +5502,18 @@ os_file_status(
 @param[in]	off		Starting offset (SEEK_SET)
 @param[in]	len		Size of the hole
 @return DB_SUCCESS or error code */
+/* Page compression is disabled by default, 
+so this function is probably not important */
 dberr_t
 os_file_punch_hole(
-	os_file_t	fh,
+	pfs_os_file_t	pfs_file,
 	os_offset_t	off,
 	os_offset_t	len)
 {
+	os_file_t fh = pfs_file;
+	if (pfs_file.is_ibd_file) {
+		fprintf(stdout, "os_file_punch_hole called for ibd file, panic!!!\n");
+	}
 #ifdef _WIN32
 	return os_file_punch_hole_win32(fh, off, len);
 #else
@@ -5477,11 +5532,12 @@ inline bool IORequest::should_punch_hole() const
 @param[in]	len		Size of the hole
 @return DB_SUCCESS or error code */
 dberr_t
-IORequest::punch_hole(os_file_t fh, os_offset_t off, ulint len)
+IORequest::punch_hole(pfs_os_file_t pfs_file, os_offset_t off, ulint len)
 {
 	/* In this debugging mode, we act as if punch hole is supported,
 	and then skip any calls to actually punch a hole here.
 	In this way, Transparent Page Compression is still being tested. */
+	os_file_t fh = pfs_file;
 	DBUG_EXECUTE_IF("ignore_punch_hole",
 		return(DB_SUCCESS);
 	);
@@ -5500,7 +5556,7 @@ IORequest::punch_hole(os_file_t fh, os_offset_t off, ulint len)
 		return DB_IO_NO_PUNCH_HOLE;
 	}
 
-	dberr_t err = os_file_punch_hole(fh, off, trim_len);
+	dberr_t err = os_file_punch_hole(pfs_file, off, trim_len);
 
 	if (err == DB_SUCCESS) {
 		srv_stats.page_compressed_trim_op.inc();
@@ -6557,7 +6613,7 @@ os_aio_func(
 	IORequest&	type,
 	ulint		mode,
 	const char*	name,
-	pfs_os_file_t	file,
+	pfs_os_file_t	pfs_file,
 	void*		buf,
 	os_offset_t	offset,
 	ulint		n,
@@ -6565,10 +6621,14 @@ os_aio_func(
 	fil_node_t*	m1,
 	void*		m2)
 {
+	os_file_t file = pfs_file;
 #ifdef WIN_ASYNC_IO
 	BOOL		ret = TRUE;
 #endif /* WIN_ASYNC_IO */
-
+	if (pfs_file.is_ibd_file) {
+		fprintf(stdout, "%s ", name);
+	}
+	fprintf(stdout, "%s\n", name);
 	ut_ad(n > 0);
 	ut_ad((n % OS_FILE_LOG_BLOCK_SIZE) == 0);
 	ut_ad((offset % OS_FILE_LOG_BLOCK_SIZE) == 0);
@@ -6583,12 +6643,12 @@ os_aio_func(
 
 	if (mode == OS_AIO_SYNC) {
 		if (type.is_read()) {
-			return(os_file_read_func(type, file, buf, offset, n));
+			return(os_file_read_func(type, pfs_file, buf, offset, n));
 		}
 
 		ut_ad(type.is_write());
 
-		return(os_file_write_func(type, name, file, buf, offset, n));
+		return(os_file_write_func(type, name, pfs_file, buf, offset, n));
 	}
 
 try_again:
@@ -6599,7 +6659,12 @@ try_again:
 
 	Slot*	slot;
 
-	slot = array->reserve_slot(type, m1, m2, file, name, buf, offset, n);
+	if (pfs_file.is_ibd_file) {
+		slot = array->reserve_slot(type, m1, m2, file, name, buf,
+			offset+srv_page_size/2, n);
+	} else {
+		slot = array->reserve_slot(type, m1, m2, file, name, buf, offset, n);
+	}
 
 	if (type.is_read()) {
 
