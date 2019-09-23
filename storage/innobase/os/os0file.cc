@@ -3184,7 +3184,7 @@ os_file_close_func(
 @param[in]	file		handle to an open file
 @return file size, or (os_offset_t) -1 on failure */
 os_offset_t
-os_file_get_size(pfs_os_file_t pfs_file)
+os_file_get_size(const pfs_os_file_t &pfs_file)
 {
 	os_file_t file = pfs_file;
 	struct stat statbuf;
@@ -4934,7 +4934,7 @@ dberr_t
 os_file_write_func(
 	const IORequest&	type,
 	const char*		name,
-	pfs_os_file_t		pfs_file,
+	const pfs_os_file_t		&pfs_file,
 	const void*		buf,
 	os_offset_t		offset,
 	ulint			n)
@@ -5030,7 +5030,7 @@ static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 os_file_read_page(
 	const IORequest&	type,
-	pfs_os_file_t		pfs_file,
+	const pfs_os_file_t		&pfs_file,
 	void*			buf,
 	os_offset_t		offset,
 	ulint			n,
@@ -5285,7 +5285,7 @@ of file.
 bool
 os_file_set_size(
 	const char*	name,
-	pfs_os_file_t	pfs_file,
+	const pfs_os_file_t	&pfs_file,
 	os_offset_t	size,
 	bool	is_sparse)
 {
@@ -5408,7 +5408,7 @@ fallback:
 bool
 os_file_truncate(
 	const char*	pathname,
-	pfs_os_file_t	pfs_file,
+	const pfs_os_file_t	&pfs_file,
 	os_offset_t	size,
 	bool		allow_shrink)
 {
@@ -5448,7 +5448,7 @@ Requests a synchronous positioned read operation.
 dberr_t
 os_file_read_func(
 	const IORequest&	type,
-	pfs_os_file_t		pfs_file,
+	const pfs_os_file_t		&pfs_file,
 	void*			buf,
 	os_offset_t		offset,
 	ulint			n)
@@ -5470,7 +5470,7 @@ Requests a synchronous positioned read operation.
 dberr_t
 os_file_read_no_error_handling_func(
 	const IORequest&	type,
-	pfs_os_file_t		pfs_file,
+	const pfs_os_file_t		&pfs_file,
 	void*			buf,
 	os_offset_t		offset,
 	ulint			n,
@@ -5506,7 +5506,7 @@ os_file_status(
 so this function is probably not important */
 dberr_t
 os_file_punch_hole(
-	pfs_os_file_t	pfs_file,
+	const pfs_os_file_t	&pfs_file,
 	os_offset_t	off,
 	os_offset_t	len)
 {
@@ -5532,7 +5532,7 @@ inline bool IORequest::should_punch_hole() const
 @param[in]	len		Size of the hole
 @return DB_SUCCESS or error code */
 dberr_t
-IORequest::punch_hole(pfs_os_file_t pfs_file, os_offset_t off, ulint len)
+IORequest::punch_hole(const pfs_os_file_t &pfs_file, os_offset_t off, ulint len)
 {
 	/* In this debugging mode, we act as if punch hole is supported,
 	and then skip any calls to actually punch a hole here.
@@ -6613,7 +6613,7 @@ os_aio_func(
 	IORequest&	type,
 	ulint		mode,
 	const char*	name,
-	pfs_os_file_t	pfs_file,
+	const pfs_os_file_t	&pfs_file,
 	void*		buf,
 	os_offset_t	offset,
 	ulint		n,

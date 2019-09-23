@@ -414,7 +414,7 @@ public:
 	@param[in]	off		Starting offset (SEEK_SET)
 	@param[in]	len		Size of the hole
 	@return DB_SUCCESS or error code */
-	dberr_t punch_hole(pfs_os_file_t pfs_file, os_offset_t off, ulint len);
+	dberr_t punch_hole(const pfs_os_file_t &pfs_file, os_offset_t off, ulint len);
 
 private:
 	/** Page to be written on write operation. */
@@ -1185,7 +1185,7 @@ os_file_get_size(
 @return file size, or (os_offset_t) -1 on failure */
 os_offset_t
 os_file_get_size(
-	pfs_os_file_t	pfs_file)
+	const pfs_os_file_t	&pfs_file)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Extend a file.
@@ -1206,7 +1206,7 @@ of file.
 bool
 os_file_set_size(
 	const char*	name,
-	pfs_os_file_t	pfs_file,
+	const pfs_os_file_t	&pfs_file,
 	os_offset_t	size,
 	bool		is_sparse = false)
 	MY_ATTRIBUTE((warn_unused_result));
@@ -1227,7 +1227,7 @@ os_file_set_eof(
 bool
 os_file_truncate(
 	const char*	pathname,
-	pfs_os_file_t	pfs_file,
+	const pfs_os_file_t	&pfs_file,
 	os_offset_t	size,
 	bool		allow_shrink = false);
 
@@ -1263,7 +1263,7 @@ Requests a synchronous read operation.
 dberr_t
 os_file_read_func(
 	const IORequest&	type,
-	pfs_os_file_t		pfs_file,
+	const pfs_os_file_t		&pfs_file,
 	void*			buf,
 	os_offset_t		offset,
 	ulint			n)
@@ -1295,7 +1295,7 @@ any error handling. In case of error it returns FALSE.
 dberr_t
 os_file_read_no_error_handling_func(
 	const IORequest&	type,
-	pfs_os_file_t		pfs_file,
+	const pfs_os_file_t		&pfs_file,
 	void*			buf,
 	os_offset_t		offset,
 	ulint			n,
@@ -1315,7 +1315,7 @@ dberr_t
 os_file_write_func(
 	const IORequest&	type,
 	const char*		name,
-	pfs_os_file_t	pfs_file,
+	const pfs_os_file_t	&pfs_file,
 	const void*		buf,
 	os_offset_t		offset,
 	ulint			n)
@@ -1422,7 +1422,7 @@ os_aio_func(
 	IORequest&	type,
 	ulint		mode,
 	const char*	name,
-	pfs_os_file_t	file,
+	const pfs_os_file_t	&file,
 	void*		buf,
 	os_offset_t	offset,
 	ulint		n,
@@ -1575,7 +1575,7 @@ os_file_change_size_win32(
 @return DB_SUCCESS or error code */
 dberr_t
 os_file_punch_hole(
-	pfs_os_file_t	pfs_file,
+	const pfs_os_file_t	&pfs_file,
 	os_offset_t	off,
 	os_offset_t	len)
 	MY_ATTRIBUTE((warn_unused_result));
