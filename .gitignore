@@ -1,5 +1,6 @@
 *.ibd
 *-t
+*experiments/data*
 *.ctest
 *.reject
 *.spec
