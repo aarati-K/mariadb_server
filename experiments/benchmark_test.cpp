@@ -23,11 +23,12 @@
 using namespace std;
 
 #define INPUT_FILE "/mnt/hdd/record/sqlite/initial_keys.txt"
-#define KEY_BASE 0
-#define NUM_ITERATIONS 4
+#define OUTPUT_FILE "/mnt/hdd/mariadb/measurements/good.txt"
+#define KEY_BASE 10000000
+#define NUM_ITERATIONS 100
 #define NUM_INSERTIONS_PER_ITERATION 50000
 #define NUM_FETCH_PER_ITERATION 50000
-#define NUM_INSRTIONS_PER_XACT_DEFAULT 50000
+#define NUM_INSERTIONS_PER_XACT_DEFAULT 1
 
 void generate_insert_stmt(int i, char* cmd_buffer) {
     char* temp = "vjdkelanfhvjdkelanfhvjdkelanfhvjdkelanfhvjdkelanfhvjdkelanfhvjdkelanfhvjdkelanfhvjdkelanfhvjdkelanfh";
@@ -50,10 +51,11 @@ int main(int argc, char** argv) {
     long time_taken;
     int max_count = 1;
     ifstream input(INPUT_FILE);
+    ofstream output(OUTPUT_FILE);
     int insert_count;
     unsigned int key;
     struct timeval startTime, endTime;
-    int num_insertions_per_transaction = NUM_INSRTIONS_PER_XACT_DEFAULT;
+    int num_insertions_per_transaction = NUM_INSERTIONS_PER_XACT_DEFAULT;
     if (argc >= 2) {
         num_insertions_per_transaction = stoi(argv[1]);
     }
@@ -70,21 +72,6 @@ int main(int argc, char** argv) {
         cout << "Connected to the database server" << endl;
     }
 
-    // Drop existing KV table
-    if (mysql_query(mysql, "DROP TABLE IF EXISTS KV")) {
-        // cout << "Error while dropping table" << endl;
-        cout << "drop table: " << mysql_error(mysql) << endl;
-        return 1;
-    }
-
-    // Create table KV
-    if (mysql_query(mysql, "CREATE TABLE KV (K INT NOT NULL PRIMARY KEY,"\
-                            "V CHAR(100) DEFAULT 'empty')")) {
-        // cout << "Error while creating table" << endl;
-        cout << "create table: " << mysql_error(mysql) << endl;
-        return 1;
-    }
-
     // Initialize command buffer
     char* cmd_buffer = (char*)malloc(sizeof(char)*200);
     if (!cmd_buffer) {
@@ -93,9 +80,9 @@ int main(int argc, char** argv) {
     }
     memset(cmd_buffer, 0, 200);
 
-    // Open input file containing keys to insert
-    if (!input.is_open()) {
-        cout << "Could not open input file" << endl;
+    // Check if input/outpuf files are open
+    if (!input.is_open() || !output.is_open()) {
+        cout << "Could not open input/output file" << endl;
         return 1;
     }
 
@@ -147,9 +134,7 @@ int main(int argc, char** argv) {
             }
             time_taken += getTimeDiff(startTime, endTime);
         }
-
-        cout << "Finished inserts, total time: " << time_taken << endl;
-        // output << time_taken << endl;
+        output << time_taken << endl;
 
         // Starting select operations
         keys_present.insert(keys_present.end(), keys_to_insert.begin(), keys_to_insert.end());
@@ -181,8 +166,8 @@ int main(int argc, char** argv) {
         }
         mysql_query(mysql, "COMMIT;");
 
-        // output << time_taken << endl;
-        cout << "Finished selects, time taken: " << time_taken << endl;
+        output << time_taken << endl;
+        cout << "Finished iteration: " << i << endl;
         keys_to_fetch.clear();
     }
 
@@ -191,5 +176,6 @@ out:
 
 close_files:
     input.close();
+    output.close();
     return 0;
 }
