@@ -900,8 +900,8 @@ void
 buf_dblwr_write_block_to_datafile(
 /*==============================*/
 	const buf_page_t*	bpage,	/*!< in: page to write */
-	bool			sync)	/*!< in: true if sync IO
-					is requested */
+	bool			sync,	/*!< in: true if sync IO is requested */
+	bool is_ibd_file=false) /*!< in: true if writing to an ibd file */
 {
 	ut_a(buf_page_in_file(bpage));
 
@@ -918,6 +918,7 @@ buf_dblwr_write_block_to_datafile(
 	void * frame = buf_page_get_frame(bpage);
 
 	if (bpage->zip.data != NULL) {
+		/* Ignoring the case of compressed data */
 		ut_ad(bpage->zip_size());
 
 		fil_io(request, sync, bpage->id, bpage->zip_size(), 0,
@@ -935,9 +936,15 @@ buf_dblwr_write_block_to_datafile(
 
 		ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 		ut_d(buf_dblwr_check_page_lsn(block->page, block->frame));
-		fil_io(request,
+		if (!is_ibd_file) {
+			fil_io(request,
 		       sync, bpage->id, bpage->zip_size(), 0, bpage->real_size,
 		       frame, block);
+		} else {
+			fil_io(request,
+		       sync, bpage->id, bpage->zip_size(), 0, bpage->real_size/2,
+		       frame, block);
+		}
 	}
 }
 
@@ -1077,10 +1084,66 @@ flush:
 	If this happens and we are using buf_dblwr->first_free in the
 	loop termination condition then we'll end up dispatching
 	the same block twice from two different threads. */
+
+	// Write in two halves, write the second half first for ibd files
 	ut_ad(first_free == buf_dblwr->first_free);
+
+	fil_space_t *space;
+	bool is_ibd_file;
+	std::set<int> sync_fds;
+	std::set<int>::iterator it;
+
+	// Fields for pwrite syscall
+	int fd;
+	void* buf;
+	size_t count;
+	off_t offset;
+
+	for (ulint i=0; i<first_free; i++) {
+		page_id_t page_id = buf_dblwr->buf_block_arr[i]->id;
+		space = fil_space_get(page_id.space());
+		if (strncmp(space->name, "mysql/", 6)==0 || strncmp(space->name, "innodb_", 7)==0 ||
+			space->id==TRX_SYS_SPACE || space->id==SRV_TMP_SPACE_ID || srv_is_undo_tablespace(space->id)) {
+			is_ibd_file = false;
+			// fprintf(stdout, "Space %s is not ibd\n", space->name);
+			continue;
+		} else {
+			is_ibd_file = true;
+			// fprintf(stdout, "Space %s is ibd\n", space->name);
+		}
+		ut_ad(is_ibd_file);
+
+		fil_mutex_enter_and_prepare_for_io(space->id);
+		ut_ad(UT_LIST_GET_FIRST(space->chain) == UT_LIST_GET_LAST(space->chain));
+		fd = UT_LIST_GET_FIRST(space->chain)->handle;
+		// fprintf(stdout, "fd %d for fil_space %s\n", fd, space->name);
+		buf = buf_page_get_frame(buf_dblwr->buf_block_arr[i]);
+		ut_ad(buf_dblwr->buf_block_arr[i]->real_size == srv_page_size);
+		count = srv_page_size/2;
+		offset = (off_t)(page_id.page_no()*srv_page_size + srv_page_size);
+		ut_ad(pwrite(fd, (void*)((char*)buf+srv_page_size/2), count, offset)==int(count));
+		mutex_exit(&fil_system.mutex);
+		sync_fds.insert(fd);
+	}
+
+	// Issue fdatasync for all sync fds
+	for (it=sync_fds.begin(); it!=sync_fds.end(); it++) {
+		fdatasync(*it);
+	}
+
 	for (ulint i = 0; i < first_free; i++) {
+		page_id_t page_id = buf_dblwr->buf_block_arr[i]->id;
+		space = fil_space_get(page_id.space());
+		if (strncmp(space->name, "mysql/", 6)==0 || strncmp(space->name, "innodb_", 7)==0 ||
+			space->id==TRX_SYS_SPACE || space->id==SRV_TMP_SPACE_ID || srv_is_undo_tablespace(space->id)) {
+			is_ibd_file = false;
+			// fprintf(stdout, "Space %s is not ibd\n", space->name);
+		} else {
+			is_ibd_file = true;
+			// fprintf(stdout, "Space %s is ibd\n", space->name);
+		}
 		buf_dblwr_write_block_to_datafile(
-			buf_dblwr->buf_block_arr[i], false);
+			buf_dblwr->buf_block_arr[i], false, is_ibd_file);
 	}
 
 	/* Wake possible simulated aio thread to actually post the

@@ -248,7 +248,6 @@ pending i/o's field in the node and the system appropriately. Takes the node
 off the LRU list if it is in the LRU list. The caller must hold the fil_sys
 mutex.
 @return false if the file can't be opened, otherwise true */
-static
 bool
 fil_node_prepare_for_io(
 /*====================*/
@@ -902,7 +901,6 @@ fil_space_extend_must_retry(
 Reserves the fil_system.mutex and tries to make sure we can open at least one
 file while holding it. This should be called before calling
 fil_node_prepare_for_io(), because that function may need to open a file. */
-static
 void
 fil_mutex_enter_and_prepare_for_io(
 /*===============================*/
@@ -3969,7 +3967,6 @@ pending i/o's field in the node and the system appropriately. Takes the node
 off the LRU list if it is in the LRU list. The caller must hold the fil_sys
 mutex.
 @return false if the file can't be opened, otherwise true */
-static
 bool
 fil_node_prepare_for_io(
 /*====================*/

@@ -1241,6 +1241,9 @@ fil_close_tablespace(
 	trx_t*	trx,	/*!< in/out: Transaction covering the close */
 	ulint	id);	/*!< in: space id */
 
+void fil_mutex_enter_and_prepare_for_io (ulint space_id);
+bool fil_node_prepare_for_io(fil_node_t* node, fil_space_t* space);
+
 /*******************************************************************//**
 Allocates and builds a file name from a path, a table or tablespace name
 and a suffix. The string must be freed by caller with ut_free().
