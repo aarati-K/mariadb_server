@@ -2617,9 +2617,9 @@ os_file_create_simple_func(
 	// bool is_ibd_file;
 	if (strncmp(&name[l-4], ".ibd", 4) == 0 && strncmp(name, "./mysql/", 8) != 0) {
 		file.is_ibd_file = true;
-		fprintf(stdout, "%s file is ibd\n", name);
+		// fprintf(stdout, "%s file is ibd\n", name);
 	} else {
-		fprintf(stdout, "%s file is not ibd\n", name);
+		// fprintf(stdout, "%s file is not ibd\n", name);
 		file.is_ibd_file = false;
 	}
 
@@ -2957,9 +2957,9 @@ os_file_create_func(
 	// bool is_ibd_file;
 	if (strncmp(&name[l-4], ".ibd", 4) == 0 && strncmp(name, "./mysql/", 8) != 0) {
 		file.is_ibd_file = true;
-		fprintf(stdout, "%s file is ibd\n", name);
+		// fprintf(stdout, "%s file is ibd\n", name);
 	} else {
-		fprintf(stdout, "%s file is not ibd\n", name);
+		// fprintf(stdout, "%s file is not ibd\n", name);
 		file.is_ibd_file = false;
 	}
 
@@ -3058,9 +3058,9 @@ os_file_create_simple_no_error_handling_func(
 	// bool is_ibd_file;
 	if (strncmp(&name[l-4], ".ibd", 4) == 0 && strncmp(name, "./mysql/", 8) != 0) {
 		file.is_ibd_file = true;
-		fprintf(stdout, "%s file is ibd\n", name);
+		// fprintf(stdout, "%s file is ibd\n", name);
 	} else {
-		fprintf(stdout, "%s file is not ibd\n", name);
+		// fprintf(stdout, "%s file is not ibd\n", name);
 		file.is_ibd_file = false;
 	}
 
@@ -4942,9 +4942,9 @@ os_file_write_func(
 	os_file_t file = pfs_file;
 	dberr_t		err;
 
-	if (pfs_file.is_ibd_file) {
-		fprintf(stdout, "os_file_write_func called for ibd file %s\n", name);
-	}
+	// if (pfs_file.is_ibd_file) {
+	// 	fprintf(stdout, "os_file_write_func called for ibd file %s\n", name);
+	// }
 
 	ut_ad(type.validate());
 	ut_ad(n > 0);
