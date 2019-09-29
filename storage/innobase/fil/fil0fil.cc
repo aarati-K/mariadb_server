@@ -4118,7 +4118,7 @@ fil_io(
 
 	ut_ad(len > 0);
 	ut_ad(byte_offset < srv_page_size);
-	ut_ad(!zip_size || byte_offset == 0);
+	// ut_ad(!zip_size || byte_offset == 0);
 	ut_ad(srv_page_size == 1UL << srv_page_size_shift);
 	compile_time_assert((1U << UNIV_PAGE_SIZE_SHIFT_MAX)
 			    == UNIV_PAGE_SIZE_MAX);
@@ -4301,10 +4301,10 @@ fil_io(
 
 	req_type.set_fil_node(node);
 
-	ut_ad(!req_type.is_write()
-	      || page_id.space() == SRV_LOG_SPACE_FIRST_ID
-	      || !fil_is_user_tablespace_id(page_id.space())
-	      || offset == page_id.page_no() * zip_size);
+	// ut_ad(!req_type.is_write()
+	//       || page_id.space() == SRV_LOG_SPACE_FIRST_ID
+	//       || !fil_is_user_tablespace_id(page_id.space())
+	//       || offset == page_id.page_no() * zip_size);
 
 	/* Queue the aio request */
 	dberr_t err = os_aio(
