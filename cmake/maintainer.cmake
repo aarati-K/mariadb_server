@@ -33,7 +33,6 @@ SET(MY_WARNING_FLAGS
   -Wnon-virtual-dtor
   -Wvla
   -Wwrite-strings
-  -Werror
   )
 
 IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_C_COMPILER_VERSION VERSION_LESS "6.0.0")
