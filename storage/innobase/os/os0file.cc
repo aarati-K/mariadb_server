@@ -2611,10 +2611,10 @@ os_file_create_simple_func(
 #endif /* USE_FILE_LOCK */
 
 	/* Check if this is an ibd file. All filenames ending in *.ibd
-	 * (except ./mysql/*.ibd) are considered ibd files.
+	 * (except ./mysql/.ibd) are considered ibd files.
 	*/
 	int l = strlen(name);
-	bool is_ibd_file;
+	// bool is_ibd_file;
 	if (strncmp(&name[l-4], ".ibd", 4) == 0 && strncmp(name, "./mysql/", 8) != 0) {
 		file.is_ibd_file = true;
 		fprintf(stdout, "%s file is ibd\n", name);
@@ -2951,10 +2951,10 @@ os_file_create_func(
 #endif /* USE_FILE_LOCK */
 
 	/* Check if this is an ibd file. All filenames ending in *.ibd
-	 * (except ./mysql/*.ibd) are considered ibd files.
+	 * (except ./mysql/.ibd) are considered ibd files.
 	*/
 	int l = strlen(name);
-	bool is_ibd_file;
+	// bool is_ibd_file;
 	if (strncmp(&name[l-4], ".ibd", 4) == 0 && strncmp(name, "./mysql/", 8) != 0) {
 		file.is_ibd_file = true;
 		fprintf(stdout, "%s file is ibd\n", name);
@@ -3052,10 +3052,10 @@ os_file_create_simple_no_error_handling_func(
 #endif /* USE_FILE_LOCK */
 
 	/* Check if this is an ibd file. All filenames ending in *.ibd
-	 * (except ./mysql/*.ibd) are considered ibd files.
+	 * (except ./mysql/.ibd) are considered ibd files.
 	*/
 	int l = strlen(name);
-	bool is_ibd_file;
+	// bool is_ibd_file;
 	if (strncmp(&name[l-4], ".ibd", 4) == 0 && strncmp(name, "./mysql/", 8) != 0) {
 		file.is_ibd_file = true;
 		fprintf(stdout, "%s file is ibd\n", name);
@@ -5537,7 +5537,7 @@ IORequest::punch_hole(const pfs_os_file_t &pfs_file, os_offset_t off, ulint len)
 	/* In this debugging mode, we act as if punch hole is supported,
 	and then skip any calls to actually punch a hole here.
 	In this way, Transparent Page Compression is still being tested. */
-	os_file_t fh = pfs_file;
+	// os_file_t fh = pfs_file;
 	DBUG_EXECUTE_IF("ignore_punch_hole",
 		return(DB_SUCCESS);
 	);
@@ -6625,10 +6625,10 @@ os_aio_func(
 #ifdef WIN_ASYNC_IO
 	BOOL		ret = TRUE;
 #endif /* WIN_ASYNC_IO */
-	if (pfs_file.is_ibd_file) {
-		fprintf(stdout, "%s ", name);
-	}
-	fprintf(stdout, "%s\n", name);
+	// if (pfs_file.is_ibd_file) {
+	// 	fprintf(stdout, "%s ", name);
+	// }
+	// fprintf(stdout, "%s\n", name);
 	ut_ad(n > 0);
 	ut_ad((n % OS_FILE_LOG_BLOCK_SIZE) == 0);
 	ut_ad((offset % OS_FILE_LOG_BLOCK_SIZE) == 0);
