@@ -941,6 +941,7 @@ buf_dblwr_write_block_to_datafile(
 		       sync, bpage->id, bpage->zip_size(), 0, bpage->real_size,
 		       frame, block);
 		} else {
+			ut_ad(bpage->real_size==srv_page_size);
 			fil_io(request,
 		       sync, bpage->id, bpage->zip_size(), 0, bpage->real_size/2,
 		       frame, block);
@@ -1089,6 +1090,7 @@ flush:
 	ut_ad(first_free == buf_dblwr->first_free);
 
 	fil_space_t *space;
+	buf_page_t* bpage;
 	bool is_ibd_file;
 	std::set<int> sync_fds;
 	std::set<int>::iterator it;
@@ -1100,7 +1102,8 @@ flush:
 	off_t offset;
 
 	for (ulint i=0; i<first_free; i++) {
-		page_id_t page_id = buf_dblwr->buf_block_arr[i]->id;
+		bpage = buf_dblwr->buf_block_arr[i];
+		page_id_t page_id = bpage->id;
 		space = fil_space_get(page_id.space());
 		if (strncmp(space->name, "mysql/", 6)==0 || strncmp(space->name, "innodb_", 7)==0 ||
 			space->id==TRX_SYS_SPACE || space->id==SRV_TMP_SPACE_ID || srv_is_undo_tablespace(space->id)) {
@@ -1116,12 +1119,24 @@ flush:
 		fil_mutex_enter_and_prepare_for_io(space->id);
 		ut_ad(UT_LIST_GET_FIRST(space->chain) == UT_LIST_GET_LAST(space->chain));
 		fd = UT_LIST_GET_FIRST(space->chain)->handle;
-		// fprintf(stdout, "fd %d for fil_space %s\n", fd, space->name);
-		buf = buf_page_get_frame(buf_dblwr->buf_block_arr[i]);
+		ut_ad(fd>=0);
+
+		buf = buf_page_get_frame(bpage);
+		ut_ad(ulint(buf)%1024==0);
+		ut_ad(buf_dblwr_check_page_lsn(bpage, buf));
+
 		ut_ad(buf_dblwr->buf_block_arr[i]->real_size == srv_page_size);
 		count = srv_page_size/2;
-		offset = (off_t)(page_id.page_no()*srv_page_size + srv_page_size);
+
+		offset = off_t(page_id.page_no())*off_t(srv_page_size) + off_t(srv_page_size);
+
+		// This should have be called already on the frame
+		// buf_flush_init_for_writing(
+		// 	reinterpret_cast<const buf_block_t*>(bpage), reinterpret_cast<const buf_block_t*>(bpage)->frame,
+		// 	NULL,
+		// 	bpage->newest_modification, false);
 		ut_ad(pwrite(fd, (void*)((char*)buf+srv_page_size/2), count, offset)==int(count));
+
 		mutex_exit(&fil_system.mutex);
 		sync_fds.insert(fd);
 	}
